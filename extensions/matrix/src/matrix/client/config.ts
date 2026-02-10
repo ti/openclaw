@@ -11,23 +11,21 @@ function clean(value?: string): string {
 /**
  * Resolve Matrix connection config from a merged account config object.
  *
- * When called with a flat `MatrixAccountConfig` (already merged for the
- * target account), env vars serve as fallbacks only for the default account
- * — callers should pass an empty `env` for non-default accounts.
+ * All values must come from the config file — environment variables are
+ * intentionally not used so that every account is fully config-driven.
  */
 export function resolveMatrixConfig(
   configOrCfg: MatrixAccountConfig | CoreConfig,
-  env: NodeJS.ProcessEnv | Record<string, never> = process.env,
 ): MatrixResolvedConfig {
   // Support both a flat MatrixAccountConfig and the legacy CoreConfig shape.
   const matrix: MatrixAccountConfig & Record<string, unknown> =
     "channels" in configOrCfg ? ((configOrCfg as CoreConfig).channels?.matrix ?? {}) : configOrCfg;
 
-  const homeserver = clean(matrix.homeserver) || clean(env.MATRIX_HOMESERVER);
-  const userId = clean(matrix.userId) || clean(env.MATRIX_USER_ID);
-  const accessToken = clean(matrix.accessToken) || clean(env.MATRIX_ACCESS_TOKEN) || undefined;
-  const password = clean(matrix.password) || clean(env.MATRIX_PASSWORD) || undefined;
-  const deviceName = clean(matrix.deviceName) || clean(env.MATRIX_DEVICE_NAME) || undefined;
+  const homeserver = clean(matrix.homeserver);
+  const userId = clean(matrix.userId);
+  const accessToken = clean(matrix.accessToken) || undefined;
+  const password = clean(matrix.password) || undefined;
+  const deviceName = clean(matrix.deviceName) || undefined;
   const initialSyncLimit =
     typeof matrix.initialSyncLimit === "number"
       ? Math.max(0, Math.floor(matrix.initialSyncLimit))
@@ -46,25 +44,23 @@ export function resolveMatrixConfig(
 
 export async function resolveMatrixAuth(params?: {
   cfg?: CoreConfig;
-  env?: NodeJS.ProcessEnv;
   /** Merged per-account config. When provided, `cfg` is ignored. */
   accountConfig?: MatrixAccountConfig;
   /** Account ID for per-account credential isolation. */
   accountId?: string | null;
 }): Promise<MatrixAuth> {
-  const env = params?.env ?? process.env;
   const accountId = params?.accountId;
   let resolved: MatrixResolvedConfig;
 
   if (params?.accountConfig) {
-    resolved = resolveMatrixConfig(params.accountConfig, env);
+    resolved = resolveMatrixConfig(params.accountConfig);
   } else {
     const cfg = params?.cfg ?? (getMatrixRuntime().config.loadConfig() as CoreConfig);
-    resolved = resolveMatrixConfig(cfg, env);
+    resolved = resolveMatrixConfig(cfg);
   }
 
   if (!resolved.homeserver) {
-    throw new Error("Matrix homeserver is required (matrix.homeserver)");
+    throw new Error("Matrix homeserver is required (channels.matrix.homeserver in config)");
   }
 
   const {
@@ -74,7 +70,7 @@ export async function resolveMatrixAuth(params?: {
     touchMatrixCredentials,
   } = await import("../credentials.js");
 
-  const cached = loadMatrixCredentials(env, accountId);
+  const cached = loadMatrixCredentials(accountId);
   const cachedCredentials =
     cached &&
     credentialsMatchConfig(cached, {
@@ -100,11 +96,10 @@ export async function resolveMatrixAuth(params?: {
           userId,
           accessToken: resolved.accessToken,
         },
-        env,
         accountId,
       );
     } else if (cachedCredentials && cachedCredentials.accessToken === resolved.accessToken) {
-      touchMatrixCredentials(env, accountId);
+      touchMatrixCredentials(accountId);
     }
     return {
       homeserver: resolved.homeserver,
@@ -117,7 +112,7 @@ export async function resolveMatrixAuth(params?: {
   }
 
   if (cachedCredentials) {
-    touchMatrixCredentials(env, accountId);
+    touchMatrixCredentials(accountId);
     return {
       homeserver: cachedCredentials.homeserver,
       userId: cachedCredentials.userId,
@@ -129,12 +124,14 @@ export async function resolveMatrixAuth(params?: {
   }
 
   if (!resolved.userId) {
-    throw new Error("Matrix userId is required when no access token is configured (matrix.userId)");
+    throw new Error(
+      "Matrix userId is required when no access token is configured (channels.matrix.userId in config)",
+    );
   }
 
   if (!resolved.password) {
     throw new Error(
-      "Matrix password is required when no access token is configured (matrix.password)",
+      "Matrix password is required when no access token is configured (channels.matrix.password in config)",
     );
   }
 
@@ -182,7 +179,6 @@ export async function resolveMatrixAuth(params?: {
       accessToken: auth.accessToken,
       deviceId: login.device_id,
     },
-    env,
     accountId,
   );
 

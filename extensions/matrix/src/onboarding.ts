@@ -40,7 +40,7 @@ async function noteMatrixAuthHelp(prompter: WizardPrompter): Promise<void> {
       "Matrix requires a homeserver URL.",
       "Use an access token (recommended) or a password (logs in and stores a token).",
       "With access token: user ID is fetched automatically.",
-      "Env vars supported: MATRIX_HOMESERVER, MATRIX_USER_ID, MATRIX_ACCESS_TOKEN, MATRIX_PASSWORD.",
+      "All credentials must be configured in the config file.",
       `Docs: ${formatDocsLink("/channels/matrix", "channels/matrix")}`,
     ].join("\n"),
     "Matrix setup",
@@ -216,45 +216,10 @@ export const matrixOnboardingAdapter: ChannelOnboardingAdapter = {
       await noteMatrixAuthHelp(prompter);
     }
 
-    const envHomeserver = process.env.MATRIX_HOMESERVER?.trim();
-    const envUserId = process.env.MATRIX_USER_ID?.trim();
-    const envAccessToken = process.env.MATRIX_ACCESS_TOKEN?.trim();
-    const envPassword = process.env.MATRIX_PASSWORD?.trim();
-    const envReady = Boolean(envHomeserver && (envAccessToken || (envUserId && envPassword)));
-
-    if (
-      envReady &&
-      !existing.homeserver &&
-      !existing.userId &&
-      !existing.accessToken &&
-      !existing.password
-    ) {
-      const useEnv = await prompter.confirm({
-        message: "Matrix env vars detected. Use env values?",
-        initialValue: true,
-      });
-      if (useEnv) {
-        next = {
-          ...next,
-          channels: {
-            ...next.channels,
-            matrix: {
-              ...next.channels?.matrix,
-              enabled: true,
-            },
-          },
-        };
-        if (forceAllowFrom) {
-          next = await promptMatrixAllowFrom({ cfg: next, prompter });
-        }
-        return { cfg: next };
-      }
-    }
-
     const homeserver = String(
       await prompter.text({
         message: "Matrix homeserver URL",
-        initialValue: existing.homeserver ?? envHomeserver,
+        initialValue: existing.homeserver,
         validate: (value) => {
           const raw = String(value ?? "").trim();
           if (!raw) {
@@ -309,7 +274,7 @@ export const matrixOnboardingAdapter: ChannelOnboardingAdapter = {
         userId = String(
           await prompter.text({
             message: "Matrix user ID",
-            initialValue: existing.userId ?? envUserId,
+            initialValue: existing.userId,
             validate: (value) => {
               const raw = String(value ?? "").trim();
               if (!raw) {

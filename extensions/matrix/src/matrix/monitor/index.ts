@@ -1,6 +1,5 @@
 import { format } from "node:util";
 import {
-  DEFAULT_ACCOUNT_ID,
   mergeAllowlist,
   normalizeAccountId,
   summarizeMapping,
@@ -251,9 +250,8 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
     },
   };
 
-  // Env vars only apply to the default account.
-  const env = accountId === DEFAULT_ACCOUNT_ID ? process.env : {};
-  const auth = await resolveMatrixAuth({ accountConfig: mergedAccount, env, accountId });
+  // Config-only auth resolution — no environment variable fallbacks.
+  const auth = await resolveMatrixAuth({ accountConfig: mergedAccount, accountId });
   const resolvedInitialSyncLimit =
     typeof opts.initialSyncLimit === "number"
       ? Math.max(0, Math.floor(opts.initialSyncLimit))

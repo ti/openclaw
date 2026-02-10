@@ -99,14 +99,13 @@ async function ensureSharedClientStarted(params: {
 export async function resolveSharedMatrixClient(
   params: {
     cfg?: CoreConfig;
-    env?: NodeJS.ProcessEnv;
     timeoutMs?: number;
     auth?: MatrixAuth;
     startClient?: boolean;
     accountId?: string | null;
   } = {},
 ): Promise<MatrixClient> {
-  const auth = params.auth ?? (await resolveMatrixAuth({ cfg: params.cfg, env: params.env }));
+  const auth = params.auth ?? (await resolveMatrixAuth({ cfg: params.cfg }));
   const accountKey = normalizeAccountId(params.accountId);
   const key = buildSharedClientKey(auth, params.accountId);
   const shouldStart = params.startClient !== false;

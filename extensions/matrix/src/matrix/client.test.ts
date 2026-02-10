@@ -3,7 +3,7 @@ import type { CoreConfig } from "../types.js";
 import { resolveMatrixConfig } from "./client.js";
 
 describe("resolveMatrixConfig", () => {
-  it("prefers config over env", () => {
+  it("resolves config values", () => {
     const cfg = {
       channels: {
         matrix: {
@@ -16,14 +16,7 @@ describe("resolveMatrixConfig", () => {
         },
       },
     } as CoreConfig;
-    const env = {
-      MATRIX_HOMESERVER: "https://env.example.org",
-      MATRIX_USER_ID: "@env:example.org",
-      MATRIX_ACCESS_TOKEN: "env-token",
-      MATRIX_PASSWORD: "env-pass",
-      MATRIX_DEVICE_NAME: "EnvDevice",
-    } as NodeJS.ProcessEnv;
-    const resolved = resolveMatrixConfig(cfg, env);
+    const resolved = resolveMatrixConfig(cfg);
     expect(resolved).toEqual({
       homeserver: "https://cfg.example.org",
       userId: "@cfg:example.org",
@@ -35,22 +28,27 @@ describe("resolveMatrixConfig", () => {
     });
   });
 
-  it("uses env when config is missing", () => {
+  it("returns empty strings when config is missing", () => {
     const cfg = {} as CoreConfig;
-    const env = {
-      MATRIX_HOMESERVER: "https://env.example.org",
-      MATRIX_USER_ID: "@env:example.org",
-      MATRIX_ACCESS_TOKEN: "env-token",
-      MATRIX_PASSWORD: "env-pass",
-      MATRIX_DEVICE_NAME: "EnvDevice",
-    } as NodeJS.ProcessEnv;
-    const resolved = resolveMatrixConfig(cfg, env);
-    expect(resolved.homeserver).toBe("https://env.example.org");
-    expect(resolved.userId).toBe("@env:example.org");
-    expect(resolved.accessToken).toBe("env-token");
-    expect(resolved.password).toBe("env-pass");
-    expect(resolved.deviceName).toBe("EnvDevice");
+    const resolved = resolveMatrixConfig(cfg);
+    expect(resolved.homeserver).toBe("");
+    expect(resolved.userId).toBe("");
+    expect(resolved.accessToken).toBeUndefined();
+    expect(resolved.password).toBeUndefined();
+    expect(resolved.deviceName).toBeUndefined();
     expect(resolved.initialSyncLimit).toBeUndefined();
     expect(resolved.encryption).toBe(false);
+  });
+
+  it("accepts flat MatrixAccountConfig", () => {
+    const accountCfg = {
+      homeserver: "https://account.example.org",
+      userId: "@bot:account.org",
+      accessToken: "tok-account",
+    };
+    const resolved = resolveMatrixConfig(accountCfg);
+    expect(resolved.homeserver).toBe("https://account.example.org");
+    expect(resolved.userId).toBe("@bot:account.org");
+    expect(resolved.accessToken).toBe("tok-account");
   });
 });

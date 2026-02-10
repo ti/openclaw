@@ -15,12 +15,9 @@ export type MatrixStoredCredentials = {
 
 const CREDENTIALS_FILENAME = "credentials.json";
 
-export function resolveMatrixCredentialsDir(
-  env: NodeJS.ProcessEnv = process.env,
-  stateDir?: string,
-  accountId?: string | null,
-): string {
-  const resolvedStateDir = stateDir ?? getMatrixRuntime().state.resolveStateDir(env, os.homedir);
+export function resolveMatrixCredentialsDir(stateDir?: string, accountId?: string | null): string {
+  const resolvedStateDir =
+    stateDir ?? getMatrixRuntime().state.resolveStateDir(process.env, os.homedir);
   const key = normalizeAccountId(accountId);
   // Non-default accounts store credentials under a per-account subdirectory.
   if (key !== DEFAULT_ACCOUNT_ID) {
@@ -29,19 +26,13 @@ export function resolveMatrixCredentialsDir(
   return path.join(resolvedStateDir, "credentials", "matrix");
 }
 
-export function resolveMatrixCredentialsPath(
-  env: NodeJS.ProcessEnv = process.env,
-  accountId?: string | null,
-): string {
-  const dir = resolveMatrixCredentialsDir(env, undefined, accountId);
+export function resolveMatrixCredentialsPath(accountId?: string | null): string {
+  const dir = resolveMatrixCredentialsDir(undefined, accountId);
   return path.join(dir, CREDENTIALS_FILENAME);
 }
 
-export function loadMatrixCredentials(
-  env: NodeJS.ProcessEnv = process.env,
-  accountId?: string | null,
-): MatrixStoredCredentials | null {
-  const credPath = resolveMatrixCredentialsPath(env, accountId);
+export function loadMatrixCredentials(accountId?: string | null): MatrixStoredCredentials | null {
+  const credPath = resolveMatrixCredentialsPath(accountId);
   try {
     if (!fs.existsSync(credPath)) {
       return null;
@@ -63,15 +54,14 @@ export function loadMatrixCredentials(
 
 export function saveMatrixCredentials(
   credentials: Omit<MatrixStoredCredentials, "createdAt" | "lastUsedAt">,
-  env: NodeJS.ProcessEnv = process.env,
   accountId?: string | null,
 ): void {
-  const dir = resolveMatrixCredentialsDir(env, undefined, accountId);
+  const dir = resolveMatrixCredentialsDir(undefined, accountId);
   fs.mkdirSync(dir, { recursive: true });
 
-  const credPath = resolveMatrixCredentialsPath(env, accountId);
+  const credPath = resolveMatrixCredentialsPath(accountId);
 
-  const existing = loadMatrixCredentials(env, accountId);
+  const existing = loadMatrixCredentials(accountId);
   const now = new Date().toISOString();
 
   const toSave: MatrixStoredCredentials = {
@@ -83,25 +73,19 @@ export function saveMatrixCredentials(
   fs.writeFileSync(credPath, JSON.stringify(toSave, null, 2), "utf-8");
 }
 
-export function touchMatrixCredentials(
-  env: NodeJS.ProcessEnv = process.env,
-  accountId?: string | null,
-): void {
-  const existing = loadMatrixCredentials(env, accountId);
+export function touchMatrixCredentials(accountId?: string | null): void {
+  const existing = loadMatrixCredentials(accountId);
   if (!existing) {
     return;
   }
 
   existing.lastUsedAt = new Date().toISOString();
-  const credPath = resolveMatrixCredentialsPath(env, accountId);
+  const credPath = resolveMatrixCredentialsPath(accountId);
   fs.writeFileSync(credPath, JSON.stringify(existing, null, 2), "utf-8");
 }
 
-export function clearMatrixCredentials(
-  env: NodeJS.ProcessEnv = process.env,
-  accountId?: string | null,
-): void {
-  const credPath = resolveMatrixCredentialsPath(env, accountId);
+export function clearMatrixCredentials(accountId?: string | null): void {
+  const credPath = resolveMatrixCredentialsPath(accountId);
   try {
     if (fs.existsSync(credPath)) {
       fs.unlinkSync(credPath);

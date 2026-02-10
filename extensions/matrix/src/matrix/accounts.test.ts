@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CoreConfig } from "../types.js";
 import { listMatrixAccountIds, resolveMatrixAccount } from "./accounts.js";
 
@@ -7,36 +7,7 @@ vi.mock("./credentials.js", () => ({
   credentialsMatchConfig: () => false,
 }));
 
-const envKeys = [
-  "MATRIX_HOMESERVER",
-  "MATRIX_USER_ID",
-  "MATRIX_ACCESS_TOKEN",
-  "MATRIX_PASSWORD",
-  "MATRIX_DEVICE_NAME",
-];
-
 describe("resolveMatrixAccount", () => {
-  let prevEnv: Record<string, string | undefined> = {};
-
-  beforeEach(() => {
-    prevEnv = {};
-    for (const key of envKeys) {
-      prevEnv[key] = process.env[key];
-      delete process.env[key];
-    }
-  });
-
-  afterEach(() => {
-    for (const key of envKeys) {
-      const value = prevEnv[key];
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  });
-
   it("treats access-token-only config as configured", () => {
     const cfg: CoreConfig = {
       channels: {
@@ -78,6 +49,15 @@ describe("resolveMatrixAccount", () => {
 
     const account = resolveMatrixAccount({ cfg });
     expect(account.configured).toBe(true);
+  });
+
+  it("not configured when config is empty", () => {
+    const cfg: CoreConfig = {
+      channels: { matrix: {} },
+    };
+
+    const account = resolveMatrixAccount({ cfg });
+    expect(account.configured).toBe(false);
   });
 });
 
@@ -132,27 +112,6 @@ describe("listMatrixAccountIds", () => {
 });
 
 describe("resolveMatrixAccount multi-account", () => {
-  let prevEnv: Record<string, string | undefined> = {};
-
-  beforeEach(() => {
-    prevEnv = {};
-    for (const key of envKeys) {
-      prevEnv[key] = process.env[key];
-      delete process.env[key];
-    }
-  });
-
-  afterEach(() => {
-    for (const key of envKeys) {
-      const value = prevEnv[key];
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  });
-
   it("merges base config with per-account overrides", () => {
     const cfg: CoreConfig = {
       channels: {
@@ -196,10 +155,7 @@ describe("resolveMatrixAccount multi-account", () => {
     expect(account.configured).toBe(true);
   });
 
-  it("does not use env vars for non-default accounts", () => {
-    process.env.MATRIX_HOMESERVER = "https://env.example.org";
-    process.env.MATRIX_ACCESS_TOKEN = "tok-env";
-
+  it("non-default account without config is not configured", () => {
     const cfg: CoreConfig = {
       channels: {
         matrix: {
@@ -213,22 +169,9 @@ describe("resolveMatrixAccount multi-account", () => {
     };
 
     const account = resolveMatrixAccount({ cfg, accountId: "work" });
-    // Env vars should not be applied to non-default accounts.
+    // No homeserver configured — not configured.
     expect(account.homeserver).toBeUndefined();
     expect(account.configured).toBe(false);
-  });
-
-  it("uses env vars for the default account", () => {
-    process.env.MATRIX_HOMESERVER = "https://env.example.org";
-    process.env.MATRIX_ACCESS_TOKEN = "tok-env";
-
-    const cfg: CoreConfig = {
-      channels: { matrix: {} },
-    };
-
-    const account = resolveMatrixAccount({ cfg, accountId: "default" });
-    expect(account.homeserver).toBe("https://env.example.org");
-    expect(account.configured).toBe(true);
   });
 
   it("per-account enabled=false disables the account", () => {

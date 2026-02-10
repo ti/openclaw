@@ -314,9 +314,6 @@ export const matrixPlugin: ChannelPlugin<ResolvedMatrixAccount> = {
         name,
       }),
     validateInput: ({ input }) => {
-      if (input.useEnv) {
-        return null;
-      }
       if (!input.homeserver?.trim()) {
         return "Matrix requires --homeserver";
       }
@@ -343,18 +340,6 @@ export const matrixPlugin: ChannelPlugin<ResolvedMatrixAccount> = {
         accountId: DEFAULT_ACCOUNT_ID,
         name: input.name,
       });
-      if (input.useEnv) {
-        return {
-          ...namedConfig,
-          channels: {
-            ...namedConfig.channels,
-            matrix: {
-              ...namedConfig.channels?.matrix,
-              enabled: true,
-            },
-          },
-        } as CoreConfig;
-      }
       return buildMatrixConfigUpdate(namedConfig as CoreConfig, {
         homeserver: input.homeserver?.trim(),
         userId: input.userId?.trim(),
@@ -401,8 +386,7 @@ export const matrixPlugin: ChannelPlugin<ResolvedMatrixAccount> = {
     }),
     probeAccount: async ({ account, timeoutMs, cfg }) => {
       try {
-        const env = account.accountId === DEFAULT_ACCOUNT_ID ? process.env : {};
-        const auth = await resolveMatrixAuth({ accountConfig: account.config, env });
+        const auth = await resolveMatrixAuth({ accountConfig: account.config });
         return await probeMatrix({
           homeserver: auth.homeserver,
           accessToken: auth.accessToken,

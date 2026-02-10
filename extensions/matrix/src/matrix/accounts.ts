@@ -105,9 +105,8 @@ export function resolveMatrixAccount(params: {
   const merged = mergeMatrixAccountConfig(params.cfg, accountId);
   const enabled = merged.enabled !== false;
 
-  // Env vars are only used for the default account.
-  const env = accountId === DEFAULT_ACCOUNT_ID ? process.env : {};
-  const resolved = resolveMatrixConfig(merged, env);
+  // Config-only resolution — no environment variable fallbacks.
+  const resolved = resolveMatrixConfig(merged);
 
   const hasHomeserver = Boolean(resolved.homeserver);
   const hasAccessToken = Boolean(resolved.accessToken);
@@ -115,10 +114,7 @@ export function resolveMatrixAccount(params: {
   const hasPassword = Boolean(resolved.password);
   const hasPasswordAuth = hasUserId && hasPassword;
 
-  const stored = loadMatrixCredentials(
-    accountId === DEFAULT_ACCOUNT_ID ? process.env : {},
-    accountId,
-  );
+  const stored = loadMatrixCredentials(accountId);
   const hasStored =
     stored && resolved.homeserver
       ? credentialsMatchConfig(stored, {
